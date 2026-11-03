@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NSDS V2 | ระบบวิเคราะห์แนวโน้มและคาดการณ์โรคในประเทศไทย</title>
+<style>
+:root{--navy:#123b5d;--blue:#17649a;--sky:#eaf3fb;--bg:#f3f6fa;--text:#20384d;--muted:#667b8d;--line:#dce5ed;--white:#fff;--green:#26734d;--amber:#946000}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Tahoma,"Noto Sans Thai",sans-serif;color:var(--text)}
+header{background:linear-gradient(120deg,#123b5d,#1d628f);color:white;padding:18px 24px;display:flex;align-items:center;gap:14px}
+.logo{width:46px;height:46px;border-radius:13px;background:white;color:#17649a;display:grid;place-items:center;font-size:25px;font-weight:bold}
+header h1{font-size:19px;margin:0 0 4px}header p{margin:0;color:#d5e6f2;font-size:11px;letter-spacing:.4px}
+.layout{display:grid;grid-template-columns:245px 1fr;min-height:calc(100vh - 82px)}
+aside{background:#fff;border-right:1px solid var(--line);padding:18px 12px}
+.aside-label{font-size:11px;color:var(--muted);font-weight:bold;margin:2px 10px 12px}
+.nav{width:100%;border:0;background:white;text-align:left;padding:13px 12px;border-radius:9px;margin:3px 0;color:#35536b;font-size:14px;cursor:pointer}
+.nav:hover,.nav.active{background:#e5f0fa;color:#155a8d;font-weight:bold}
+.aside-foot{margin:24px 10px 0;padding-top:14px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+main{padding:25px;max-width:1400px;width:100%;margin:auto}
+.page{display:none}.page.active{display:block}
+h2{font-size:24px;margin:0 0 5px;color:#173f61}h3{font-size:16px;margin:0 0 14px;color:#214b6d}
+.sub{color:var(--muted);font-size:13px;margin:0 0 20px}
+.card{background:#fff;border:1px solid var(--line);border-radius:13px;padding:17px;margin-bottom:16px;box-shadow:0 2px 8px #183d5a08}
+.filters{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:12px}
+label{display:block;font-size:12px;font-weight:bold;color:#526b80;margin-bottom:6px}
+select,input,textarea{width:100%;border:1px solid #cbd8e3;border-radius:8px;padding:10px;background:white;color:#20384d;font:inherit;font-size:13px}
+input[type=checkbox]{width:auto}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin:14px 0}
+.kpi{padding:17px;border-radius:12px;background:white;border:1px solid var(--line)}
+.kpi small{display:block;color:#567188;font-size:12px}.kpi strong{display:block;font-size:27px;margin:8px 0 2px;color:#174e80}.kpi span{font-size:11px;color:var(--muted)}
+.kpi.blue{background:#eaf3ff}.kpi.red{background:#fff0f1}.kpi.gold{background:#fff7e5}.kpi.green{background:#edf8f1}
+.grid2{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+.grid2.equal{grid-template-columns:1fr 1fr}
+table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:10px 9px;border-bottom:1px solid #e7edf2;text-align:left}th{background:#f2f6fa;color:#49657b;font-size:12px}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.badge{display:inline-block;padding:5px 9px;border-radius:20px;background:#e9f2fa;color:#24618b;font-size:11px;font-weight:bold}
+.note{font-size:11px;color:#718395;line-height:1.6}
+.btn{border:0;background:#17649a;color:white;padding:10px 15px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:bold}
+.btn:hover{background:#124c75}.btn.secondary{background:#edf3f8;color:#31536e;border:1px solid #d4e0e9}.btn.green{background:#26734d}.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.between{justify-content:space-between}
+.chart{width:100%;height:245px;display:block}.legend{display:flex;gap:13px;flex-wrap:wrap;font-size:11px;color:#5d7488}.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+.bars{display:flex;align-items:end;gap:10px;height:190px;padding:12px 8px 28px;border-bottom:1px solid #d7e1e9}
+.barwrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:end;height:100%;gap:6px}.bar{width:70%;max-width:42px;background:#5b9bc9;border-radius:5px 5px 0 0;min-height:2px}.barlabel{font-size:10px;color:#60788c;white-space:nowrap}.barvalue{font-size:10px;color:#35556d}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.tab{padding:9px 13px;border-radius:8px;border:1px solid #d5e1ea;background:white;cursor:pointer;font-size:12px}.tab.active{background:#e4f0fa;border-color:#9fc2df;color:#155a8d;font-weight:bold}
+.agegrid{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}.ageitem{background:#f5f8fb;border:1px solid #e3ebf1;border-radius:8px;padding:10px}.ageitem b{display:block;font-size:12px}.ageitem span{font-size:17px;color:#17649a;font-weight:bold}
+.formgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.ageinputs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.checklist{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.checkrow{padding:9px;border:1px solid #e0e8ef;border-radius:8px;background:#fafcfd;font-size:13px}
+.steps{display:flex;gap:8px;flex-wrap:wrap}.step{padding:8px 11px;background:#edf3f8;border-radius:8px;font-size:12px}
+footer{text-align:center;padding:18px;color:#718395;font-size:11px}
+@media(max-width:850px){.layout{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--line);padding:9px;display:flex;overflow:auto;gap:5px}.aside-label,.aside-foot{display:none}.nav{white-space:nowrap;width:auto;margin:0;padding:10px}.filters{grid-template-columns:repeat(2,1fr)}.kpis{grid-template-columns:repeat(2,1fr)}.grid2,.grid2.equal{grid-template-columns:1fr}main{padding:16px}.agegrid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){header{padding:14px}.filters,.formgrid,.ageinputs{grid-template-columns:1fr}.kpis{gap:8px}.kpi{padding:12px}.kpi strong{font-size:22px}.checklist{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div class="logo">✚</div><div><h1>ระบบวิเคราะห์แนวโน้มและคาดการณ์โรคในประเทศไทย</h1><p>THAILAND DISEASE TREND ANALYSIS & FORECASTING SYSTEM · NSDS V2</p></div></header>
+<div class="layout">
+<aside><div class="aside-label">เมนูหลัก</div>
+<button class="nav active" data-page="overview">▦ ภาพรวมสถานการณ์โรค</button>
+<button class="nav" data-page="analysis">⌁ วิเคราะห์แนวโน้มและคาดการณ์</button>
+<button class="nav" data-page="input">✎ บันทึกข้อมูลทีมสำรวจ</button>
+<button class="nav" data-page="report">▤ รายงานประจำเดือน</button>
+<button class="nav" data-page="recipients">♙ จัดการผู้รับรายงาน</button>
+<div class="aside-foot">NSDS V2 · Prototype<br>ข้อมูลตัวเลขในต้นแบบเป็นข้อมูลจำลอง</div></aside>
+<main>
+<section id="overview" class="page active">
+<h2>ภาพรวมสถานการณ์โรค</h2><p class="sub">สรุปสถานการณ์ผู้ป่วยและข้อมูลโรคที่เฝ้าระวังในประเทศไทย</p>
+<div class="card"><h3>ตัวกรองข้อมูล</h3><div class="filters">
+<div><label>พื้นที่</label><select id="ovRegion"><option>ภาพรวมประเทศไทย</option></select></div>
+<div><label>ปี พ.ศ.</label><select id="ovYear"><option>2569</option><option>2568</option><option>2567</option><option>2566</option><option>2565</option></select></div>
+<div><label>เดือน</label><select id="ovMonth"></select></div>
+<div><label>โรค</label><select id="ovDisease"></select></div>
+</div></div>
+<div class="row between"><h3>สรุปสถานการณ์</h3><span class="badge">ข้อมูลตัวอย่าง</span></div>
+<div class="kpis"><div class="kpi blue"><small>ผู้ป่วยสะสม</small><strong id="kpiTotal">12,480</strong><span>ราย</span></div><div class="kpi red"><small>ผู้ป่วยเดือนล่าสุด</small><strong id="kpiMonth">1,250</strong><span>ราย</span></div><div class="kpi gold"><small>เปลี่ยนแปลงจากเดือนก่อน</small><strong>+12.5%</strong><span>เพิ่มขึ้น</span></div><div class="kpi green"><small>โรคที่ติดตาม</small><strong>6 โรค</strong><span>13 เขตสุขภาพ</span></div></div>
+<div class="card"><h3>จำนวนผู้ป่วยแยกตามโรค</h3><table><thead><tr><th>โรค</th><th class="num">จำนวน (ราย)</th></tr></thead><tbody id="overviewTable"></tbody></table><p class="note">ตัวเลขจำลองเพื่อแสดงรูปแบบหน้าจอเท่านั้น ไม่ใช่สถิติผู้ป่วยจริง</p></div>
+</section>
+
+<section id="analysis" class="page">
+<h2>วิเคราะห์แนวโน้มและคาดการณ์</h2><p class="sub">เปรียบเทียบข้อมูลย้อนหลัง วิเคราะห์กลุ่มอายุ และคาดการณ์ผู้ป่วยเดือนถัดไป</p>
+<div class="card"><h3>ตัวกรองการวิเคราะห์</h3><div class="filters">
+<div><label>รูปแบบการวิเคราะห์</label><select id="analysisMode"><option value="5">เปรียบเทียบย้อนหลัง 5 ปี</option><option value="1">ดูเฉพาะปีที่เลือก</option></select></div>
+<div><label>เลือกโรค</label><select id="analysisDisease"></select></div>
+<div><label>เขตสุขภาพ</label><select id="analysisRegion"></select></div>
+<div id="analysisYearWrap" style="display:none"><label>เลือกปี พ.ศ.</label><select id="analysisYear"><option>2569</option><option>2568</option><option>2567</option><option>2566</option><option>2565</option></select></div>
+</div></div>
+<div class="card"><div class="row between"><h3>แนวโน้มจำนวนผู้ป่วยรายเดือน</h3><span class="badge" id="analysisChartLabel">เปรียบเทียบ 5 ปี</span></div><svg id="trendChart" class="chart" viewBox="0 0 760 245" role="img" aria-label="กราฟแนวโน้มผู้ป่วย"></svg><div class="legend" id="trendLegend"></div><p class="note">กราฟตัวอย่างจำลองเพื่อแสดงการเชื่อมตัวกรอง</p></div>
+<div class="grid2 equal">
+<div class="card"><h3>วิเคราะห์ผู้ป่วยตามกลุ่มอายุ</h3><p class="note">แสดงทุกกลุ่มอายุอัตโนมัติ ไม่มีตัวกรองอายุ</p><div id="ageChart" class="agegrid"></div></div>
+<div class="card"><h3>คาดการณ์ผู้ป่วยเดือนถัดไป</h3><p class="note" id="forecastMonth">พฤศจิกายน 2569 · แยกรายโรค</p><table><thead><tr><th>โรค</th><th class="num">คาดการณ์ (ราย)</th></tr></thead><tbody id="forecastTable"></tbody></table><div class="row between" style="margin-top:14px"><b>รวมคาดการณ์</b><b style="font-size:22px;color:#17649a" id="forecastTotal">1,420 ราย</b></div><p class="note">ค่าคาดการณ์เป็นตัวอย่าง ไม่ใช่ผลคำนวณจากฐานข้อมูลจริง</p></div>
+</div>
+</section>
+
+<section id="input" class="page">
+<h2>บันทึกข้อมูลทีมสำรวจ</h2><p class="sub">แบบฟอร์มบันทึกจำนวนผู้ป่วยรายเดือนเข้าสู่ฐานข้อมูลกลาง (ต้นแบบ)</p>
+<div class="card"><h3>ข้อมูลการสำรวจ</h3><div class="formgrid">
+<div><label>ปี พ.ศ.</label><select id="inputYear"><option>2569</option><option>2568</option></select></div>
+<div><label>เดือน</label><select id="inputMonth"></select></div>
+<div><label>เขตสุขภาพ</label><select id="inputRegion"></select></div>
+<div><label>โรค</label><select id="inputDisease"></select></div>
+</div></div>
+<div class="card"><h3>จำนวนผู้ป่วยจำแนกตามกลุ่มอายุ</h3><div class="ageinputs" id="ageInputs"></div><div class="row between" style="margin-top:16px"><b>รวมผู้ป่วย</b><b id="inputTotal" style="font-size:22px;color:#17649a">0 ราย</b></div><p class="note">กรอกจำนวนเต็มตั้งแต่ 0 ขึ้นไป ห้ามกรอกข้อมูลระบุตัวบุคคล</p><button class="btn" id="saveInput">บันทึกข้อมูลตัวอย่าง</button><span id="inputMessage" class="note" style="margin-left:10px"></span></div>
+<div class="card"><h3>ประวัติการบันทึกในต้นแบบ</h3><div id="inputHistory" class="note">ยังไม่มีรายการบันทึก</div></div>
+</section>
+
+<section id="report" class="page">
+<h2>รายงานประจำเดือน</h2><p class="sub">สร้างรายงาน PDF ตรวจสอบ และยืนยันส่งรายงานให้ผู้รับที่เลือก</p>
+<div class="card"><h3>กำหนดรายงาน</h3><div class="formgrid"><div><label>เดือนรายงาน</label><select id="reportMonth"></select></div><div><label>ปี พ.ศ.</label><select id="reportYear"><option>2569</option><option>2568</option></select></div></div><div style="margin-top:15px"><button class="btn" id="generateReport">สร้างตัวอย่างรายงาน</button></div></div>
+<div class="card" id="reportPreview" style="display:none"><div class="row between"><h3>ตัวอย่างรายงานประจำเดือน</h3><span class="badge">PDF Preview</span></div><div style="border:1px solid #dce5ed;padding:24px;border-radius:8px;background:#fff"><h2 style="font-size:19px">รายงานวิเคราะห์แนวโน้มและคาดการณ์โรคในประเทศไทย</h2><p id="reportTitle" class="note"></p><hr><h3>หน้า 1 · ภาพรวมสถานการณ์</h3><p>สรุปจำนวนผู้ป่วยและสถานการณ์โรคเฝ้าระวัง 6 โรค</p><h3>หน้า 2 · แนวโน้มและกลุ่มอายุ</h3><p>เปรียบเทียบข้อมูลย้อนหลัง 5 ปีและแจกแจงผู้ป่วยตามกลุ่มอายุ</p><h3>หน้า 3 · การคาดการณ์</h3><p>คาดการณ์ผู้ป่วยเดือนถัดไปแยกรายโรค พร้อมข้อเสนอแนะ</p></div><div class="row" style="margin-top:15px"><label style="margin:0"><input type="checkbox" id="verifyReport"> ฉันตรวจสอบเนื้อหารายงานแล้ว</label></div><p class="note">ต้นแบบนี้แสดงตัวอย่างหน้ารายงาน ยังไม่ได้สร้าง PDF จริง</p><button class="btn" id="goRecipients" disabled>ไปเลือกผู้รับรายงาน →</button></div>
+<div class="card"><h3>กำหนดรอบการส่ง</h3><div style="font-size:27px;color:#17649a;font-weight:bold">วันที่ 5</div><p class="note">ของเดือนถัดไป หลังเจ้าหน้าที่ตรวจสอบความถูกต้องและยืนยันรายงาน</p></div>
+</section>
+
+<section id="recipients" class="page">
+<h2>จัดการผู้รับรายงาน</h2><p class="sub">เลือกส่งรายงาน PDF และลิงก์ Dashboard ให้ผู้รับหลายหน่วยงานพร้อมกัน</p>
+<div class="card"><div class="row between"><h3>ผู้บริหารสำนักงานเขตสุขภาพ</h3><span class="badge">13 เขต</span></div><label class="checkrow"><input type="checkbox" id="allZones" checked> เลือกทั้ง 13 เขตสุขภาพ</label><div class="checklist" id="zoneList" style="margin-top:10px"></div><hr style="border:0;border-top:1px solid #e5ebf0;margin:16px 0"><h3>หน่วยงานส่วนกลาง</h3><div class="checklist"><label class="checkrow"><input type="checkbox" id="central" checked> กรมควบคุมโรค</label><label class="checkrow"><input type="checkbox" id="icTeam" checked> ทีม IC/IPC</label></div></div>
+<div class="card"><h3>สรุปก่อนส่ง</h3><p id="recipientCount" style="font-size:20px;color:#17649a;font-weight:bold">เลือก 15 กลุ่ม</p><p class="note">รายงานภาพรวมประเทศไทยใช้เนื้อหาเดียวกันสำหรับทุกกลุ่มที่เลือก การส่งจริงต้องมี LINE User ID หรือ Group ID ที่ลงทะเบียนและได้รับอนุญาตแล้ว</p><div class="row"><button class="btn secondary" id="selectAll">เลือกทั้งหมด</button><button class="btn secondary" id="clearAll">ยกเลิกทั้งหมด</button></div><hr style="border:0;border-top:1px solid #e5ebf0;margin:16px 0"><button class="btn green" id="confirmSend">ยืนยันการส่ง (ตัวอย่าง)</button><p id="sendMessage" class="note"></p></div>
+<div class="card"><h3>ประวัติการส่งในต้นแบบ</h3><div id="sendHistory" class="note">ยังไม่มีรายการ</div></div>
+</section>
+</main></div>
+<footer>NSDS V2 · ระบบวิเคราะห์แนวโน้มและคาดการณ์โรคในประเทศไทย · Prototype เท่านั้น / ไม่เชื่อมฐานข้อมูลหรือ LINE จริง</footer>
+<script>
+const diseases=["ทุกโรค","โรคมือเท้าปาก","โรคไข้เลือดออก","โรคปอดบวม","โรคไข้หวัดใหญ่","โรคลมแดด","โรคอุจจาระร่วงเฉียบพลัน"];
+const diseaseNames=diseases.slice(1), months=["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+const short=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+const ages=["ต่ำกว่า 1 ปี","1–4 ปี","5–9 ปี","10–14 ปี","15–24 ปี","25–34 ปี","35–44 ปี","45–54 ปี","55–64 ปี","65 ปีขึ้นไป"];
+const zones=Array.from({length:13},(_,i)=>`เขตสุขภาพที่ ${i+1}`);
+const colors=["#2d78ad","#e39b36","#4d9a78","#8768b1","#d16b75"];
+function fillSelect(id,items,first){let el=document.getElementById(id);el.innerHTML="";items.forEach((x,i)=>{let o=document.createElement("option");o.value=x;o.textContent=x;el.appendChild(o)});if(first)el.value=first}
+["ovDisease","analysisDisease"].forEach(id=>fillSelect(id,diseases,"ทุกโรค"));
+["inputDisease"].forEach(id=>fillSelect(id,diseaseNames,diseaseNames[0]));
+["ovMonth","inputMonth","reportMonth"].forEach(id=>fillSelect(id,months,"ตุลาคม"));
+["ovRegion","analysisRegion"].forEach(id=>fillSelect(id,["ภาพรวมประเทศไทย",...zones],"ภาพรวมประเทศไทย"));
+fillSelect("inputRegion",zones,zones[3]);
+const zoneList=document.getElementById("zoneList");
+zones.forEach((z,i)=>{zoneList.insertAdjacentHTML("beforeend",`<label class="checkrow"><input class="zonecheck" type="checkbox" checked value="${i}"> ${z}</label>`)});
+const vals=[280,420,190,250,30,80], forecastVals=[320,480,210,290,25,95];
+function selectedDisease(){return document.getElementById("analysisDisease").value}
+function diseaseIndexes(){let d=selectedDisease();return d==="ทุกโรค"?[0,1,2,3,4,5]:[diseaseNames.indexOf(d)]}
+function regionFactor(){let r=document.getElementById("analysisRegion").value;return r==="ภาพรวมประเทศไทย"?1:0.075+(zones.indexOf(r)%4)*.012}
+function renderOverview(){let d=document.getElementById("ovDisease").value;let factor=document.getElementById("ovRegion").value==="ภาพรวมประเทศไทย"?1:.075;let arr=vals.map((v,i)=>({name:diseaseNames[i],v:Math.round(v*factor)}));if(d!=="ทุกโรค")arr=arr.filter(x=>x.name===d);document.getElementById("overviewTable").innerHTML=arr.map(x=>`<tr><td>${x.name}</td><td class="num">${x.v.toLocaleString()}</td></tr>`).join("");document.getElementById("kpiTotal").textContent=Math.round(12480*factor).toLocaleString();document.getElementById("kpiMonth").textContent=Math.round(1250*factor).toLocaleString()}
+function renderAnalysis(){
+ const mode=document.getElementById("analysisMode").value, disease=selectedDisease(), factor=regionFactor();
+ document.getElementById("analysisYearWrap").style.display=mode==="1"?"block":"none";
+ document.getElementById("analysisChartLabel").textContent=mode==="5"?"เปรียบเทียบ 5 ปี":"ปี "+document.getElementById("analysisYear").value;
+ const idx=diseaseIndexes(), svg=document.getElementById("trendChart");let series=mode==="5"?[0,1,2,3,4]:[Number(document.getElementById("analysisYear").value)-2565];
+ let monthsToShow=[0,1,2,3,4,5,6,7,8,9,10,11], max=1200;
+ let markup='';for(let k=0;k<4;k++){let y=25+k*48;markup+=`<line x1="48" y1="${y}" x2="744" y2="${y}" stroke="#e7edf2"/><text x="5" y="${y+4}" fill="#789" font-size="10">${(max-k*300).toString()}</text>`}
+ const sums=monthsToShow.map((m)=>idx.reduce((s,i)=>s+vals[i]*(.65+.35*Math.sin((m+1)/12*Math.PI))*factor,0));max=Math.max(500,...sums)*1.15;
+ markup='';for(let k=0;k<4;k++){let y=22+k*55;markup+=`<line x1="48" y1="${y}" x2="744" y2="${y}" stroke="#e7edf2"/><text x="4" y="${y+4}" fill="#789" font-size="10">${Math.round(max*(1-k/3))}</text>`}
+ monthsToShow.forEach((m,i)=>{let x=55+i*57.5;markup+=`<text x="${x}" y="237" text-anchor="middle" fill="#60788c" font-size="10">${short[m]}</text>`});
+ series.forEach((yr,j)=>{let values=sums.map((v,i)=>v*(.78+yr*.055)*(1+.05*Math.sin(i+j)));let pts=values.map((v,i)=>`${55+i*57.5},${210-(v/max)*175}`).join(" ");markup+=`<polyline points="${pts}" fill="none" stroke="${colors[j]}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`});
+ svg.innerHTML=markup;
+ document.getElementById("trendLegend").innerHTML=series.map((yr,j)=>`<span><i style="background:${colors[j]}"></i>${mode==="5"?(2565+yr):document.getElementById("analysisYear").value}</span>`).join("");
+ let ageVals=ages.map((a,i)=>Math.round((12+i*12+Math.sin(i)*8)*idx.reduce((s,k)=>s+vals[k],0)/1250*factor));document.getElementById("ageChart").innerHTML=ages.map((a,i)=>`<div class="ageitem"><b>${a}</b><span>${ageVals[i].toLocaleString()}</span><small class="note">ราย</small></div>`).join("");
+ let rows=idx.map(i=>({name:diseaseNames[i],v:Math.round(forecastVals[i]*factor)}));document.getElementById("forecastTable").innerHTML=rows.map(x=>`<tr><td>${x.name}</td><td class="num">${x.v.toLocaleString()}</td></tr>`).join("");document.getElementById("forecastTotal").textContent=rows.reduce((s,x)=>s+x.v,0).toLocaleString()+" ราย";
+ document.getElementById("forecastMonth").textContent="เดือนถัดไป · "+(disease==="ทุกโรค"?"แยกรายโรค":disease);
+}
+function nav(page){document.querySelectorAll(".page").forEach(x=>x.classList.toggle("active",x.id===page));document.querySelectorAll(".nav").forEach(x=>x.classList.toggle("active",x.dataset.page===page));window.scrollTo(0,0)}
+document.querySelectorAll(".nav").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.page)));
+["ovDisease","ovRegion","ovYear","ovMonth"].forEach(id=>document.getElementById(id).addEventListener("change",renderOverview));
+["analysisMode","analysisDisease","analysisRegion","analysisYear"].forEach(id=>document.getElementById(id).addEventListener("change",renderAnalysis));
+function updateInputTotal(){let s=[...document.querySelectorAll(".ageinput")].reduce((a,x)=>a+(Number(x.value)||0),0);document.getElementById("inputTotal").textContent=s.toLocaleString()+" ราย"}
+document.getElementById("ageInputs").innerHTML=ages.map((a,i)=>`<div><label>${a}</label><input class="ageinput" type="number" min="0" step="1" value="0"></div>`).join("");
+document.querySelectorAll(".ageinput").forEach(x=>x.addEventListener("input",updateInputTotal));
+let savedInputs=[];
+document.getElementById("saveInput").addEventListener("click",()=>{let fields=[...document.querySelectorAll(".ageinput")];if(fields.some(x=>!Number.isInteger(Number(x.value))||Number(x.value)<0)){alert("กรุณากรอกจำนวนเต็มตั้งแต่ 0 ขึ้นไป");return}let entry={year:document.getElementById("inputYear").value,month:document.getElementById("inputMonth").value,region:document.getElementById("inputRegion").value,disease:document.getElementById("inputDisease").value,total:fields.reduce((s,x)=>s+Number(x.value),0)};savedInputs.unshift(entry);document.getElementById("inputHistory").innerHTML=savedInputs.map(x=>`${x.month} ${x.year} · ${x.region} · ${x.disease} · ${x.total} ราย`).join("<br>");document.getElementById("inputMessage").textContent="เพิ่มรายการในต้นแบบแล้ว"});
+document.getElementById("generateReport").addEventListener("click",()=>{document.getElementById("reportPreview").style.display="block";document.getElementById("reportTitle").textContent=`ประจำเดือน ${document.getElementById("reportMonth").value} พ.ศ. ${document.getElementById("reportYear").value}`;document.getElementById("verifyReport").checked=false;document.getElementById("goRecipients").disabled=true});
+document.getElementById("verifyReport").addEventListener("change",e=>document.getElementById("goRecipients").disabled=!e.target.checked);
+document.getElementById("goRecipients").addEventListener("click",()=>nav("recipients"));
+function syncRecipients(){let zonesSelected=document.querySelectorAll(".zonecheck:checked").length;document.getElementById("allZones").checked=zonesSelected===13;let count=zonesSelected+(document.getElementById("central").checked?1:0)+(document.getElementById("icTeam").checked?1:0);document.getElementById("recipientCount").textContent=`เลือก ${count} กลุ่ม`;}
+document.getElementById("allZones").addEventListener("change",e=>{document.querySelectorAll(".zonecheck").forEach(x=>x.checked=e.target.checked);syncRecipients()});
+document.querySelectorAll(".zonecheck,#central,#icTeam").forEach(x=>x.addEventListener("change",syncRecipients));
+document.getElementById("selectAll").addEventListener("click",()=>{document.querySelectorAll(".zonecheck").forEach(x=>x.checked=true);document.getElementById("central").checked=true;document.getElementById("icTeam").checked=true;syncRecipients()});
+document.getElementById("clearAll").addEventListener("click",()=>{document.querySelectorAll(".zonecheck").forEach(x=>x.checked=false);document.getElementById("central").checked=false;document.getElementById("icTeam").checked=false;syncRecipients()});
+let sendLogs=[];
+document.getElementById("confirmSend").addEventListener("click",()=>{let count=document.querySelectorAll(".zonecheck:checked").length+(document.getElementById("central").checked?1:0)+(document.getElementById("icTeam").checked?1:0);if(!count){alert("กรุณาเลือกผู้รับอย่างน้อย 1 กลุ่ม");return}sendLogs.unshift(`${new Date().toLocaleString("th-TH")} · เลือก ${count} กลุ่ม · สาธิตเท่านั้น`);document.getElementById("sendHistory").innerHTML=sendLogs.join("<br>");document.getElementById("sendMessage").textContent="บันทึกการยืนยันในต้นแบบแล้ว (ไม่ได้ส่ง LINE จริง)"});
+renderOverview();renderAnalysis();syncRecipients();
+</script>
+</body></html>

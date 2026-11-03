@@ -1,0 +1,8 @@
+streamlit>=1.36
+pandas>=2.0
+plotly>=5.20
+supabase>=2.4
+reportlab>=4.0
+requests>=2.31
+google-api-python-client>=2.120
+google-auth>=2.28

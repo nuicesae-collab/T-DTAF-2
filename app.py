@@ -1006,176 +1006,339 @@ elif page == "บันทึกข้อมูลทีมสำรวจ":
 elif page == "รายงานประจำเดือน":
 
     st.subheader("รายงานประจำเดือน")
-
-    c1, c2 = st.columns(2)
-
-    year = c1.selectbox(
-        "ปี พ.ศ.",
-        [2564, 2565, 2566, 2567, 2568, 2569, 2570],
-        index=5
+    st.caption(
+        "สร้างรายงาน PDF 3 หน้า ประกอบด้วยภาพรวมสถานการณ์ "
+        "แนวโน้มย้อนหลัง 5 ปี และการคาดการณ์ผู้ป่วยเดือนถัดไป"
     )
 
-    month = c2.selectbox(
-        "เดือน",
-        list(range(1, 13)),
-        format_func=lambda x: MONTHS[x-1]
-    )
+    # ------------------------------------------
+    # 1. REPORT FILTERS
+    # ------------------------------------------
 
-    area = st.selectbox(
-        "พื้นที่รายงาน",
-        ["ประเทศไทย"] + REGIONS
-    )
+    with st.container(border=True):
 
-    include_forecast = st.checkbox(
-        "รวมข้อมูลคาดการณ์/จำลองปี 2569",
-        value=False
-    )
+        st.markdown("### กำหนดรายงาน")
 
-    if st.button(
-        "สร้างรายงาน PDF",
-        type="primary"
-    ):
+        c1, c2 = st.columns(2)
 
-        df = (
-            hist[hist.year_be == year]
-            if year < 2569
-            else forecast[forecast.year_be == year]
+        year = c1.selectbox(
+            "ปี พ.ศ.",
+            [2564, 2565, 2566, 2567, 2568, 2569, 2570],
+            index=5,
+            key="report_year"
         )
 
-        if include_forecast and year == 2569:
+        month = c2.selectbox(
+            "เดือนรายงาน",
+            list(range(1, 13)),
+            format_func=lambda x: MONTHS[x - 1],
+            key="report_month"
+        )
 
-            df = pd.concat(
-                [
-                    df,
-                    simulation[simulation.year_be == year]
-                ],
-                ignore_index=True
-            )
+        area = st.selectbox(
+            "พื้นที่รายงาน",
+            ["ประเทศไทย"] + REGIONS,
+            key="report_area"
+        )
 
-        df = df[df.month == month]
+        include_forecast = st.checkbox(
+            "รวมข้อมูลคาดการณ์/จำลองปี 2569",
+            value=False,
+            key="report_include_forecast"
+        )
 
-        if area != "ประเทศไทย":
+    # ------------------------------------------
+    # 2. PDF STRUCTURE PREVIEW
+    # ------------------------------------------
 
-            df = df[df.health_region == area]
+    st.markdown("### โครงสร้างรายงาน PDF")
 
-        if df.empty:
-
-            st.warning("ไม่พบข้อมูลตามเงื่อนไข")
-
-        else:
-
-            pdf = build_pdf(
-                df,
-                area,
-                f"รายงานประจำเดือน {MONTHS[month-1]} {year}"
-            )
-
-            st.session_state["last_pdf"] = pdf
-
-            st.session_state["last_pdf_name"] = (
-                f"T-DTAF_{year}_{month:02d}.pdf"
-            )
-
-            st.download_button(
-                "ดาวน์โหลดรายงาน PDF",
-                pdf,
-                file_name=st.session_state["last_pdf_name"],
-                mime="application/pdf"
-            )
-
-            st.success("สร้าง PDF แล้ว")
-
-    st.markdown("### รายงานผลวิเคราะห์แนวโน้ม")
-    st.caption(
-        "สร้าง PDF สรุปแนวโน้มข้อมูลย้อนหลัง โดยเลือกพื้นที่รายงานด้านบน"
+    preview_cols = st.columns(3)
+    preview_cols[0].info(
+        "**หน้า 1**\n\nภาพรวมสถานการณ์ตามพื้นที่ที่เลือก\nสรุปผู้ป่วยครบ 6 โรค"
+    )
+    preview_cols[1].info(
+        "**หน้า 2**\n\nแนวโน้มข้อมูลย้อนหลัง 5 ปี\nจำนวนผู้ป่วยแยกตามกลุ่มอายุ"
+    )
+    preview_cols[2].info(
+        "**หน้า 3**\n\nคาดการณ์ผู้ป่วยเดือนถัดไปแยกรายโรค\nพร้อมข้อเสนอแนะ"
     )
 
+    # ------------------------------------------
+    # 3. CREATE THREE-PAGE PDF
+    # ------------------------------------------
+
     if st.button(
-        "สร้าง PDF ผลวิเคราะห์แนวโน้ม",
-        key="create_analysis_pdf"
+        "สร้างรายงาน PDF 3 หน้า",
+        type="primary",
+        use_container_width=True,
+        key="create_monthly_report"
     ):
 
-        analysis_pdf_data = hist.copy()
+        try:
+            # PAGE 1: DATA FOR THE SELECTED REPORT MONTH
+            if year < 2569:
+                report_source = hist.copy()
+            else:
+                report_source = forecast.copy()
 
-        if area != "ประเทศไทย":
-            analysis_pdf_data = analysis_pdf_data[
-                analysis_pdf_data["health_region"] == area
-            ]
+            if not report_source.empty:
+                report_source = report_source[
+                    report_source["year_be"] == year
+                ]
+                report_source = report_source[
+                    report_source["month"] == month
+                ]
 
-        if analysis_pdf_data.empty:
-            st.warning("ไม่พบข้อมูลย้อนหลังสำหรับสร้างรายงานผลวิเคราะห์")
-        else:
-            analysis_pdf = build_pdf(
-                analysis_pdf_data,
-                area,
-                "ผลวิเคราะห์แนวโน้มข้อมูลย้อนหลัง"
+            if include_forecast and year == 2569 and not simulation.empty:
+                simulation_source = simulation[
+                    (simulation["year_be"] == year)
+                    & (simulation["month"] == month)
+                ].copy()
+                report_source = pd.concat(
+                    [report_source, simulation_source],
+                    ignore_index=True
+                )
+
+            if area != "ประเทศไทย" and not report_source.empty:
+                report_source = report_source[
+                    report_source["health_region"] == area
+                ]
+
+            # PAGE 2: HISTORICAL DATA, LAST FIVE AVAILABLE YEARS
+            historical_source = hist.copy()
+
+            if area != "ประเทศไทย" and not historical_source.empty:
+                historical_source = historical_source[
+                    historical_source["health_region"] == area
+                ]
+
+            if not historical_source.empty:
+                available_years = sorted(
+                    pd.to_numeric(
+                        historical_source["year_be"], errors="coerce"
+                    ).dropna().unique().tolist()
+                )
+                available_years = [y for y in available_years if y <= year][-5:]
+                historical_source = historical_source[
+                    historical_source["year_be"].isin(available_years)
+                ].copy()
+
+            # PAGE 3: FORECAST ALL SIX DISEASES FOR THE NEXT MONTH
+            forecast_source = hist.copy()
+
+            if area != "ประเทศไทย" and not forecast_source.empty:
+                forecast_source = forecast_source[
+                    forecast_source["health_region"] == area
+                ]
+
+            forecast_rows = []
+            for disease_name in DISEASES:
+                try:
+                    prediction = next_month_forecast(
+                        forecast_source,
+                        disease_name
+                    )
+                    forecast_rows.append({
+                        "disease": disease_name,
+                        "cases": max(0, int(prediction.get("cases", 0)))
+                    })
+                except Exception as forecast_error:
+                    st.warning(
+                        f"ไม่สามารถคาดการณ์ {disease_name}: {forecast_error}"
+                    )
+                    forecast_rows.append({
+                        "disease": disease_name,
+                        "cases": 0
+                    })
+
+            forecast_data = pd.DataFrame(
+                forecast_rows,
+                columns=["disease", "cases"]
             )
 
-            st.session_state["last_analysis_pdf"] = analysis_pdf
-            st.session_state["last_analysis_pdf_name"] = (
-                f"T-DTAF_Analysis_{year}_{month:02d}.pdf"
-            )
+            if report_source.empty:
+                st.warning(
+                    "ไม่พบข้อมูลตามปี เดือน และพื้นที่ที่เลือก "
+                    "โปรดตรวจสอบข้อมูลก่อนสร้างรายงาน"
+                )
+            else:
+                # The current modules/reporting.py accepts historical_df
+                # and forecast_df. It derives age distribution from historical_df.
+                pdf = build_pdf(
+                    df=report_source,
+                    area=area,
+                    title="รายงานวิเคราะห์แนวโน้มและคาดการณ์โรค",
+                    historical_df=historical_source,
+                    forecast_df=forecast_data,
+                    report_month=month,
+                    report_year=year
+                )
 
-            st.download_button(
-                "ดาวน์โหลด PDF ผลวิเคราะห์แนวโน้ม",
-                analysis_pdf,
-                file_name=st.session_state["last_analysis_pdf_name"],
-                mime="application/pdf",
-                key="download_analysis_pdf"
-            )
-            st.success("สร้าง PDF ผลวิเคราะห์แล้ว")
+                st.session_state["last_pdf"] = pdf
+                st.session_state["last_pdf_name"] = (
+                    f"T-DTAF_Report_{year}_{month:02d}.pdf"
+                )
+                st.session_state["last_pdf_area"] = area
+                st.session_state["last_pdf_year"] = year
+                st.session_state["last_pdf_month"] = month
+                st.success("สร้างรายงาน PDF 3 หน้าเรียบร้อยแล้ว")
+
+        except Exception as error:
+            st.error(f"สร้างรายงาน PDF ไม่สำเร็จ: {error}")
+
+    # ------------------------------------------
+    # 4. DOWNLOAD PDF
+    # ------------------------------------------
 
     if "last_pdf" in st.session_state:
+        st.divider()
+        st.markdown("### ดาวน์โหลดรายงาน")
+        st.download_button(
+            "ดาวน์โหลดรายงาน PDF",
+            data=st.session_state["last_pdf"],
+            file_name=st.session_state["last_pdf_name"],
+            mime="application/pdf",
+            use_container_width=True,
+            key="download_monthly_pdf"
+        )
+        st.caption(
+            f"พื้นที่: {st.session_state.get('last_pdf_area', 'ไม่ระบุ')} | "
+            f"เดือน: {MONTHS[st.session_state.get('last_pdf_month', month) - 1]} | "
+            f"ปี พ.ศ. {st.session_state.get('last_pdf_year', year)}"
+        )
 
-        if st.button("ส่ง PDF และลิงก์ Dashboard ผ่าน LINE OA"):
+    # ------------------------------------------
+    # 5. AUTO SELECT RECIPIENTS AND SEND THROUGH LINE OA
+    # ------------------------------------------
 
-            drive_url = upload_pdf_to_drive(
-                st.session_state["last_pdf"],
-                st.session_state["last_pdf_name"]
-            )
+    if "last_pdf" in st.session_state:
+        st.divider()
+        st.markdown("### การส่งรายงานผ่าน LINE OA")
 
-            dashboard = st.secrets.get(
-                "APP_PUBLIC_URL",
-                ""
-            )
+        report_area = st.session_state.get("last_pdf_area", area)
+        st.markdown(f"**พื้นที่ของรายงาน:** {report_area}")
 
-            if not drive_url:
+        # list_recipients() returns active recipients from the database.
+        active_recipients = list_recipients()
+        if not isinstance(active_recipients, list):
+            active_recipients = []
 
-                st.error(
-                    "อัปโหลด PDF ไป Google Drive ไม่สำเร็จ "
-                    "หรือยังไม่ได้ตั้งค่า Drive"
-                )
+        selected_recipients = []
+        for recipient in active_recipients:
+            name = str(recipient.get("name", "")).strip()
+            line_id = str(recipient.get("line_id", "")).strip()
+            if not name or not line_id:
+                continue
 
-            elif not dashboard:
-
-                st.error(
-                    "กรุณาตั้งค่า APP_PUBLIC_URL "
-                    "ใน Streamlit Secrets"
-                )
-
+            if report_area == "ประเทศไทย":
+                # National reports go only to the Epidemiology Team.
+                if "ระบาดวิทยา" in name or "ทีมระบาด" in name:
+                    selected_recipients.append(recipient)
             else:
+                # The current recipient table stores name and LINE ID only.
+                # Therefore, include the exact region name in the recipient name.
+                if report_area in name:
+                    selected_recipients.append(recipient)
 
-                recipients = list_recipients()
+        # Remove duplicate LINE IDs before displaying/sending.
+        unique_recipients = {}
+        for recipient in selected_recipients:
+            unique_recipients[recipient["line_id"]] = recipient
+        selected_recipients = list(unique_recipients.values())
 
-                sent = 0
+        if report_area == "ประเทศไทย":
+            st.info("กลุ่มผู้รับที่ระบบเลือกอัตโนมัติ: ทีมระบาดวิทยา")
+        else:
+            st.info(
+                f"กลุ่มผู้รับที่ระบบเลือกอัตโนมัติ: ผู้รับผิดชอบ{report_area}"
+            )
 
-                for rec in recipients:
+        st.markdown(f"**จำนวนผู้รับ: {len(selected_recipients)} ราย**")
 
-                    if (
-                        rec.get("line_id")
-                        and send_line_message(
-                            rec["line_id"],
-                            f"T-DTAF รายงานประจำเดือน\n"
+        if selected_recipients:
+            recipient_preview = pd.DataFrame([
+                {
+                    "ลำดับ": index + 1,
+                    "ชื่อผู้รับ/หน่วยงาน": recipient.get("name", "-"),
+                    "LINE ID": recipient.get("line_id", "-")
+                }
+                for index, recipient in enumerate(selected_recipients)
+            ])
+            st.dataframe(
+                recipient_preview,
+                use_container_width=True,
+                hide_index=True
+            )
+
+            confirm_key = (
+                "confirm_report_send_"
+                + str(st.session_state.get("last_pdf_name", "report"))
+                + "_"
+                + str(report_area).replace(" ", "_")
+            )
+            confirmed = st.checkbox(
+                "ฉันตรวจสอบรายชื่อผู้รับและยืนยันการส่งรายงานแล้ว",
+                key=confirm_key
+            )
+
+            if st.button(
+                "ยืนยันส่ง PDF ผ่าน LINE OA",
+                type="primary",
+                use_container_width=True,
+                disabled=not confirmed,
+                key="send_monthly_report_line"
+            ):
+                try:
+                    drive_url = upload_pdf_to_drive(
+                        st.session_state["last_pdf"],
+                        st.session_state["last_pdf_name"]
+                    )
+                    dashboard = st.secrets.get("APP_PUBLIC_URL", "")
+
+                    if not drive_url:
+                        st.error(
+                            "อัปโหลด PDF ไป Google Drive ไม่สำเร็จ "
+                            "โปรดตรวจสอบการตั้งค่า Drive"
+                        )
+                    elif not dashboard:
+                        st.error(
+                            "กรุณาตั้งค่า APP_PUBLIC_URL ใน Streamlit Secrets"
+                        )
+                    else:
+                        sent = 0
+                        failed = 0
+                        message = (
+                            "T-DTAF รายงานประจำเดือน\n"
+                            f"พื้นที่: {report_area}\n"
                             f"PDF: {drive_url}\n"
                             f"Dashboard: {dashboard}"
                         )
-                    ):
+                        for recipient in selected_recipients:
+                            result = send_line_message(
+                                recipient["line_id"], message
+                            )
+                            if result:
+                                sent += 1
+                            else:
+                                failed += 1
 
-                        sent += 1
+                        if failed == 0:
+                            st.success(f"ส่งรายงานสำเร็จ {sent} ราย")
+                        else:
+                            st.warning(
+                                f"ส่งสำเร็จ {sent} ราย และส่งไม่สำเร็จ {failed} ราย"
+                            )
+                except Exception as error:
+                    st.error(f"เกิดข้อผิดพลาดในการส่งรายงาน: {error}")
 
-                st.success(
-                    f"ส่ง LINE สำเร็จ {sent}/{len(recipients)} ราย"
-                )
+        else:
+            st.warning(
+                "ยังไม่พบผู้รับที่ตรงกับพื้นที่รายงาน "
+                "โปรดเพิ่มผู้รับในเมนู 'จัดการผู้รับรายงาน' "
+                "โดยตั้งชื่อให้ตรงตามเงื่อนไข เช่น ทีมระบาดวิทยา "
+                "หรือ ผู้รับผิดชอบเขตสุขภาพที่ 1"
+            )
 
 
 # =====================================================
@@ -1185,6 +1348,11 @@ elif page == "รายงานประจำเดือน":
 elif page == "จัดการผู้รับรายงาน":
 
     st.subheader("จัดการผู้รับรายงาน")
+    st.caption(
+        "การจับคู่ผู้รับอัตโนมัติใช้ชื่อผู้รับ: รายงานประเทศไทยให้ใช้คำว่า "
+        "'ทีมระบาดวิทยา' และรายงานเขตให้ใส่ชื่อเขต เช่น "
+        "'ผู้รับผิดชอบเขตสุขภาพที่ 1' ในชื่อผู้รับ"
+    )
 
     with st.form("recipient"):
 
@@ -1249,4 +1417,3 @@ st.caption(
     "T-DTAF | THAILAND DISEASE TREND ANALYSIS "
     "& FORECASTING SYSTEM"
 )
-

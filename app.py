@@ -1301,12 +1301,26 @@ elif page == "รายงานประจำเดือน":
                 continue
 
             if report_area == "ประเทศไทย":
-                # National reports go only to the Epidemiology Team.
-                if "ระบาดวิทยา" in name or "ทีมระบาด" in name:
+                # National reports go to BOTH national teams:
+                # Epidemiology and Infection Control (IC).
+                is_epidemiology = (
+                    "ระบาดวิทยา" in name
+                    or "ทีมระบาด" in name
+                )
+
+                is_infection_control = (
+                    "ควบคุมการติดเชื้อ" in name
+                    or "ทีม IC" in name
+                    or "(IC)" in name
+                    or " IC" in name
+                )
+
+                if is_epidemiology or is_infection_control:
                     selected_recipients.append(recipient)
+
             else:
-                # The current recipient table stores name and LINE ID only.
-                # Therefore, include the exact region name in the recipient name.
+                # Regional reports go to the administrator group
+                # whose recipient name contains the selected health region.
                 if report_area in name:
                     selected_recipients.append(recipient)
 
@@ -1317,7 +1331,10 @@ elif page == "รายงานประจำเดือน":
         selected_recipients = list(unique_recipients.values())
 
         if report_area == "ประเทศไทย":
-            st.info("กลุ่มผู้รับที่ระบบเลือกอัตโนมัติ: ทีมระบาดวิทยา")
+            st.info(
+                "กลุ่มผู้รับที่ระบบเลือกอัตโนมัติ: "
+                "ทีมระบาดวิทยา และทีมควบคุมการติดเชื้อ (IC)"
+            )
         else:
             st.info(
                 f"กลุ่มผู้รับที่ระบบเลือกอัตโนมัติ: ผู้รับผิดชอบ{report_area}"
@@ -1402,12 +1419,20 @@ elif page == "รายงานประจำเดือน":
                     st.error(f"เกิดข้อผิดพลาดในการส่งรายงาน: {error}")
 
         else:
-            st.warning(
-                "ยังไม่พบผู้รับที่ตรงกับพื้นที่รายงาน "
-                "โปรดเพิ่มผู้รับในเมนู 'จัดการผู้รับรายงาน' "
-                "โดยตั้งชื่อให้ตรงตามเงื่อนไข เช่น ทีมระบาดวิทยา "
-                "หรือ ผู้รับผิดชอบเขตสุขภาพที่ 1"
-            )
+            if report_area == "ประเทศไทย":
+                st.warning(
+                    "ยังไม่พบผู้รับรายงานประเทศไทย "
+                    "โปรดเพิ่มผู้รับในเมนู 'จัดการผู้รับรายงาน' "
+                    "ให้มีชื่อทีมระบาดวิทยา และทีมควบคุมการติดเชื้อ (IC) "
+                    "พร้อม LINE Group ID ที่ถูกต้อง"
+                )
+            else:
+                st.warning(
+                    "ยังไม่พบผู้รับที่ตรงกับพื้นที่รายงาน "
+                    "โปรดเพิ่มผู้รับในเมนู 'จัดการผู้รับรายงาน' "
+                    "โดยตั้งชื่อให้มีชื่อเขตสุขภาพที่เลือก เช่น "
+                    "'ผู้บริหารเขตสุขภาพที่ 1' พร้อม LINE Group ID"
+                )
 
 
 # =====================================================
@@ -1418,9 +1443,11 @@ elif page == "จัดการผู้รับรายงาน":
 
     st.subheader("จัดการผู้รับรายงาน")
     st.caption(
-        "การจับคู่ผู้รับอัตโนมัติใช้ชื่อผู้รับ: รายงานประเทศไทยให้ใช้คำว่า "
-        "'ทีมระบาดวิทยา' และรายงานเขตให้ใส่ชื่อเขต เช่น "
-        "'ผู้รับผิดชอบเขตสุขภาพที่ 1' ในชื่อผู้รับ"
+        "การจับคู่ผู้รับอัตโนมัติ: รายงานประเทศไทยส่งให้ "
+        "'ทีมระบาดวิทยา' และ 'ทีมควบคุมการติดเชื้อ (IC)' "
+        "ส่วนรายงานเขตสุขภาพส่งให้กลุ่มผู้บริหารของเขตที่เลือก "
+        "เช่น 'ผู้บริหารเขตสุขภาพที่ 1' "
+        "กรุณากรอก LINE User ID หรือ Group ID ให้ถูกต้อง"
     )
 
     with st.form("recipient"):

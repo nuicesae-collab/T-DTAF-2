@@ -807,75 +807,178 @@ elif page == "วิเคราะห์แนวโน้มและคาด
 elif page == "บันทึกข้อมูลทีมสำรวจ":
 
     st.subheader("บันทึกข้อมูลทีมสำรวจ")
+    st.caption(
+        "แบบฟอร์มบันทึกจำนวนผู้ป่วยรายเดือนเข้าสู่ฐานข้อมูลกลาง"
+    )
 
-    with st.form("survey"):
+    # ---------- SURVEY INFORMATION ----------
+
+    with st.container(border=True):
+
+        st.markdown("### ข้อมูลการสำรวจ")
 
         c1, c2 = st.columns(2)
 
         year = c1.selectbox(
             "ปี พ.ศ.",
             list(range(2564, 2571)),
-            index=5
+            index=5,
+            key="survey_year"
         )
 
         month = c2.selectbox(
             "เดือน",
             list(range(1, 13)),
-            format_func=lambda x: MONTHS[x-1]
+            format_func=lambda x: MONTHS[x - 1],
+            key="survey_month"
         )
 
-        disease = st.selectbox(
+        c3, c4 = st.columns(2)
+
+        region = c3.selectbox(
+            "เขตสุขภาพ",
+            REGIONS,
+            key="survey_region"
+        )
+
+        disease = c4.selectbox(
             "โรค",
-            DISEASES
+            DISEASES,
+            key="survey_disease"
         )
 
-        region = st.selectbox(
-            "พื้นที่",
-            REGIONS
-        )
+    # ---------- CASES BY AGE GROUP ----------
 
-        age = st.selectbox(
-            "กลุ่มอายุ",
-            AGE_ORDER
-        )
+    st.markdown(" ")
 
-        cases = st.number_input(
-            "จำนวนผู้ป่วยรวม",
-            min_value=0,
-            step=1
+    with st.container(border=True):
+
+        st.markdown("### จำนวนผู้ป่วยจำแนกตามกลุ่มอายุ")
+
+        age_values = {}
+
+        # แสดงช่องกรอก 2 คอลัมน์ ตาม Prototype
+        for i in range(0, len(AGE_ORDER), 2):
+
+            col1, col2 = st.columns(2)
+
+            for col, age in zip(
+                [col1, col2],
+                AGE_ORDER[i:i + 2]
+            ):
+
+                with col:
+
+                    age_values[age] = st.number_input(
+                        age,
+                        min_value=0,
+                        value=0,
+                        step=1,
+                        key=f"survey_cases_{i}_{age}"
+                    )
+
+        total_cases = sum(age_values.values())
+
+        st.markdown("---")
+
+        total_col1, total_col2 = st.columns([2, 1])
+
+        with total_col1:
+            st.markdown("### รวมผู้ป่วย")
+
+        with total_col2:
+            st.markdown(
+                f"""
+                <div style="
+                    text-align:right;
+                    color:#17649b;
+                    font-size:25px;
+                    font-weight:700;
+                    padding-top:4px;
+                ">
+                    {total_cases:,} ราย
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        st.caption(
+            "กรอกจำนวนเต็มตั้งแต่ 0 ขึ้นไป "
+            "ห้ามกรอกข้อมูลระบุตัวบุคคล"
         )
 
         note = st.text_area(
-            "หมายเหตุ/แหล่งข้อมูล"
+            "หมายเหตุ/แหล่งข้อมูล",
+            placeholder="ระบุแหล่งข้อมูลหรือรายละเอียดเพิ่มเติม",
+            key="survey_source_note"
         )
 
-        ok = st.form_submit_button(
-            "บันทึกข้อมูล"
+        save_clicked = st.button(
+            "บันทึกข้อมูล",
+            type="primary",
+            key="save_survey_button"
         )
 
-    if ok:
+        if save_clicked:
 
-        result = save_survey_record(
-            dict(
-                year_be=year,
-                month=month,
-                disease=disease,
-                health_region=region,
-                age_group=age,
-                cases=int(cases),
-                source_note=note
-            )
-        )
+            if total_cases <= 0:
 
-        if result:
-            st.success("บันทึกข้อมูลแล้ว")
-        else:
-            st.error(
-                "บันทึกลงฐานข้อมูลไม่สำเร็จ "
-                "โปรดตรวจสอบ Supabase"
-            )
+                st.error(
+                    "กรุณากรอกจำนวนผู้ป่วยอย่างน้อย 1 ราย"
+                )
 
-    st.markdown("### ประวัติการบันทึก")
+            else:
+
+                saved_count = 0
+                failed_ages = []
+
+                # บันทึกแยก 1 รายการต่อ 1 กลุ่มอายุ
+                # เพื่อให้ข้อมูลนำไปวิเคราะห์กลุ่มอายุได้
+                for age, count in age_values.items():
+
+                    record = {
+                        "year_be": int(year),
+                        "month": int(month),
+                        "disease": disease,
+                        "health_region": region,
+                        "age_group": age,
+                        "cases": int(count),
+                        "source_note": note
+                    }
+
+                    result = save_survey_record(record)
+
+                    if result:
+                        saved_count += 1
+                    else:
+                        failed_ages.append(age)
+
+                if not failed_ages:
+
+                    st.success(
+                        f"บันทึกข้อมูลสำเร็จ "
+                        f"รวมผู้ป่วย {total_cases:,} ราย "
+                        f"({saved_count} กลุ่มอายุ)"
+                    )
+
+                    st.rerun()
+
+                else:
+
+                    st.error(
+                        f"บันทึกสำเร็จ {saved_count} จาก "
+                        f"{len(age_values)} กลุ่มอายุ"
+                    )
+
+                    st.warning(
+                        "กลุ่มอายุที่บันทึกไม่สำเร็จ: "
+                        + ", ".join(failed_ages)
+                    )
+
+    # ---------- SURVEY HISTORY ----------
+
+    st.markdown(" ")
+    st.markdown("## ประวัติการบันทึก")
 
     rec = load_survey_records()
 

@@ -1,6 +1,8 @@
 
 import streamlit as st
 import pandas as pd
+import base64
+import streamlit.components.v1 as components
 
 from modules.data import load_all, DISEASES, AGE_ORDER, REGIONS, MONTHS
 from modules.auth import login_gate, logout_button
@@ -1193,6 +1195,39 @@ elif page == "รายงานประจำเดือน":
 
     if "last_pdf" in st.session_state:
         st.divider()
+
+        # ------------------------------------------
+        # PDF PREVIEW BEFORE DOWNLOAD
+        # ------------------------------------------
+        st.markdown("### ตัวอย่างรายงาน PDF ก่อนดาวน์โหลด")
+        st.caption(
+            "ตรวจสอบรายงานทั้ง 3 หน้าได้จากหน้าต่างด้านล่าง "
+            "หากข้อมูลถูกต้องจึงกดดาวน์โหลด"
+        )
+
+        pdf_base64 = base64.b64encode(
+            st.session_state["last_pdf"]
+        ).decode("utf-8")
+
+        pdf_preview_html = f"""
+        <div style="width:100%; border:1px solid #dce5ed;
+                    border-radius:12px; overflow:hidden;">
+            <iframe
+                src="data:application/pdf;base64,{pdf_base64}"
+                width="100%"
+                height="850"
+                style="border:0;"
+                title="T-DTAF PDF Preview">
+            </iframe>
+        </div>
+        """
+
+        components.html(
+            pdf_preview_html,
+            height=865,
+            scrolling=True
+        )
+
         st.markdown("### ดาวน์โหลดรายงาน")
         st.download_button(
             "ดาวน์โหลดรายงาน PDF",

@@ -141,6 +141,35 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
     font-size: 12px;
 }
 
+.age-summary-card {
+    background: #f3f7fb;
+    border: 1px solid #dce7f0;
+    border-radius: 10px;
+    padding: 12px 14px;
+    min-height: 66px;
+    margin-bottom: 8px;
+}
+
+.age-summary-card .age-label {
+    color: #294b67;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+
+.age-summary-card .age-value {
+    color: #17649a;
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.15;
+}
+
+.age-summary-card .age-unit {
+    color: #718395;
+    font-size: 11px;
+    margin-left: 3px;
+}
+
 div[data-testid="stSelectbox"] label {
     color: #526b80;
     font-weight: 600;
@@ -634,52 +663,57 @@ elif page == "วิเคราะห์แนวโน้มและคาด
         with st.container(border=True):
 
             st.markdown("### วิเคราะห์ผู้ป่วยตามกลุ่มอายุ")
+            st.caption("แสดงจำนวนผู้ป่วยแยกตามกลุ่มอายุในรูปแบบการ์ด")
 
-            if not analysis_data.empty:
+            if not analysis_data.empty and "age_group" in analysis_data.columns:
 
-                if disease == "ทุกโรค":
+                ages = (
+                    analysis_data
+                    .groupby("age_group", as_index=False)["cases"]
+                    .sum()
+                )
 
-                    ages = (
-                        analysis_data
-                        .groupby("age_group", as_index=False)["cases"]
-                        .sum()
-                    )
+                ages["age_group"] = pd.Categorical(
+                    ages["age_group"],
+                    categories=AGE_ORDER,
+                    ordered=True
+                )
+                ages = ages.sort_values("age_group")
 
-                    ages["age_group"] = pd.Categorical(
-                        ages["age_group"],
-                        categories=AGE_ORDER,
-                        ordered=True
-                    )
+                age_values = {
+                    str(row["age_group"]): int(row["cases"])
+                    for _, row in ages.iterrows()
+                    if pd.notna(row["age_group"])
+                }
 
-                    ages = ages.sort_values("age_group")
+                for i in range(0, len(AGE_ORDER), 2):
 
-                else:
+                    age_cols = st.columns(2)
 
-                    ages = age_summary(
-                        analysis_data,
-                        disease
-                    )
+                    for col, age_label in zip(
+                        age_cols,
+                        AGE_ORDER[i:i + 2]
+                    ):
 
-                if not ages.empty:
+                        value = age_values.get(age_label, 0)
 
-                    age_chart = ages.set_index(
-                        "age_group"
-                    )["cases"]
+                        with col:
+                            st.markdown(
+                                f"""
+                                <div class="age-summary-card">
+                                    <div class="age-label">{age_label}</div>
+                                    <div class="age-value">
+                                        {value:,}<span class="age-unit">ราย</span>
+                                    </div>
+                                </div>
+                                """,
+                                unsafe_allow_html=True
+                            )
 
-                    st.bar_chart(
-                        age_chart,
-                        horizontal=True
-                    )
-
-                    st.dataframe(
-                        ages,
-                        use_container_width=True,
-                        hide_index=True
-                    )
-
-                else:
-
-                    st.info("ไม่พบข้อมูลกลุ่มอายุ")
+                st.caption(
+                    "หมายเหตุ: แสดงตามกลุ่มอายุที่มีอยู่ในฐานข้อมูลปัจจุบัน "
+                    "ซึ่งแบ่งเป็น 6 กลุ่มอายุ"
+                )
 
             else:
 
@@ -771,36 +805,6 @@ elif page == "วิเคราะห์แนวโน้มและคาด
                 "ไม่ใช่คำพยากรณ์ทางระบาดวิทยา"
             )
 
-    # ---------- PDF ANALYSIS ----------
-
-    st.divider()
-
-    if st.button(
-        "สร้าง PDF ผลวิเคราะห์",
-        type="primary"
-    ):
-
-        if analysis_data.empty:
-
-            st.warning("ไม่มีข้อมูลสำหรับสร้างรายงาน")
-
-        else:
-
-            pdf = build_pdf(
-                analysis_data,
-                area,
-                "ผลวิเคราะห์แนวโน้ม"
-            )
-
-            st.download_button(
-                "ดาวน์โหลด PDF",
-                pdf,
-                file_name="T-DTAF_Analysis.pdf",
-                mime="application/pdf"
-            )
-
-
-# =====================================================
 # 9. SURVEY INPUT - บันทึกข้อมูลทีมสำรวจ
 # =====================================================
 
@@ -1080,6 +1084,46 @@ elif page == "รายงานประจำเดือน":
             )
 
             st.success("สร้าง PDF แล้ว")
+
+    st.markdown("### รายงานผลวิเคราะห์แนวโน้ม")
+    st.caption(
+        "สร้าง PDF สรุปแนวโน้มข้อมูลย้อนหลัง โดยเลือกพื้นที่รายงานด้านบน"
+    )
+
+    if st.button(
+        "สร้าง PDF ผลวิเคราะห์แนวโน้ม",
+        key="create_analysis_pdf"
+    ):
+
+        analysis_pdf_data = hist.copy()
+
+        if area != "ประเทศไทย":
+            analysis_pdf_data = analysis_pdf_data[
+                analysis_pdf_data["health_region"] == area
+            ]
+
+        if analysis_pdf_data.empty:
+            st.warning("ไม่พบข้อมูลย้อนหลังสำหรับสร้างรายงานผลวิเคราะห์")
+        else:
+            analysis_pdf = build_pdf(
+                analysis_pdf_data,
+                area,
+                "ผลวิเคราะห์แนวโน้มข้อมูลย้อนหลัง"
+            )
+
+            st.session_state["last_analysis_pdf"] = analysis_pdf
+            st.session_state["last_analysis_pdf_name"] = (
+                f"T-DTAF_Analysis_{year}_{month:02d}.pdf"
+            )
+
+            st.download_button(
+                "ดาวน์โหลด PDF ผลวิเคราะห์แนวโน้ม",
+                analysis_pdf,
+                file_name=st.session_state["last_analysis_pdf_name"],
+                mime="application/pdf",
+                key="download_analysis_pdf"
+            )
+            st.success("สร้าง PDF ผลวิเคราะห์แล้ว")
 
     if "last_pdf" in st.session_state:
 

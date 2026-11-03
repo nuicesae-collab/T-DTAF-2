@@ -2,6 +2,8 @@
 import streamlit as st
 import pandas as pd
 import base64
+from datetime import datetime
+from zoneinfo import ZoneInfo
 import streamlit.components.v1 as components
 
 from modules.data import load_all, DISEASES, AGE_ORDER, REGIONS, MONTHS
@@ -1107,6 +1109,24 @@ elif page == "รายงานประจำเดือน":
                     report_source["health_region"] == area
                 ]
 
+            # PREVIOUS MONTH: used for the month-on-month comparison on page 1.
+            previous_year = year if month > 1 else year - 1
+            previous_month = month - 1 if month > 1 else 12
+            if previous_year <= 2568:
+                previous_base = hist.copy()
+            else:
+                previous_base = forecast.copy()
+            previous_source = previous_base.copy()
+            if not previous_source.empty:
+                previous_source = previous_source[
+                    (previous_source["year_be"] == previous_year)
+                    & (previous_source["month"] == previous_month)
+                ].copy()
+            if area != "ประเทศไทย" and not previous_source.empty:
+                previous_source = previous_source[
+                    previous_source["health_region"] == area
+                ].copy()
+
             # PAGE 2: HISTORICAL DATA, LAST FIVE AVAILABLE YEARS
             historical_source = hist.copy()
 
@@ -1167,14 +1187,47 @@ elif page == "รายงานประจำเดือน":
             else:
                 # The current modules/reporting.py accepts historical_df
                 # and forecast_df. It derives age distribution from historical_df.
+                if year < 2569:
+                    source_label = "ฐานข้อมูลผู้ป่วยย้อนหลัง (hist)"
+                else:
+                    source_label = "ชุดข้อมูลคาดการณ์ปี 2569 (forecast)"
+                    if include_forecast:
+                        source_label += " และข้อมูลจำลอง (simulation)"
+
+                # Include provenance notes when the source files provide them.
+                if "source_note" in report_source.columns:
+                    notes = [
+                        str(x).strip()
+                        for x in report_source["source_note"].dropna().unique().tolist()
+                        if str(x).strip()
+                    ]
+                    if notes:
+                        source_label += " | " + "; ".join(notes[:2])
+
+                historical_source_label = "ฐานข้อมูลผู้ป่วยย้อนหลัง (hist)"
+                if "source_note" in historical_source.columns:
+                    history_notes = [
+                        str(x).strip()
+                        for x in historical_source["source_note"].dropna().unique().tolist()
+                        if str(x).strip()
+                    ]
+                    if history_notes:
+                        historical_source_label += " | " + "; ".join(history_notes[:2])
+
+                generated_at = datetime.now(ZoneInfo("Asia/Bangkok"))
+
                 pdf = build_pdf(
                     df=report_source,
                     area=area,
                     title="รายงานวิเคราะห์แนวโน้มและคาดการณ์โรค",
                     historical_df=historical_source,
                     forecast_df=forecast_data,
+                    previous_df=previous_source,
                     report_month=month,
-                    report_year=year
+                    report_year=year,
+                    source_label=source_label,
+                    historical_source_label=historical_source_label,
+                    generated_at=generated_at
                 )
 
                 st.session_state["last_pdf"] = pdf
@@ -1190,44 +1243,25 @@ elif page == "รายงานประจำเดือน":
             st.error(f"สร้างรายงาน PDF ไม่สำเร็จ: {error}")
 
     # ------------------------------------------
-    # 4. DOWNLOAD PDF
+    # 4. PREVIEW AND DOWNLOAD PDF
     # ------------------------------------------
 
     if "last_pdf" in st.session_state:
         st.divider()
-
-        # ------------------------------------------
-        # PDF PREVIEW BEFORE DOWNLOAD
-        # ------------------------------------------
-        st.markdown("### ตัวอย่างรายงาน PDF ก่อนดาวน์โหลด")
-        st.caption(
-            "ตรวจสอบรายงานทั้ง 3 หน้าได้จากหน้าต่างด้านล่าง "
-            "หากข้อมูลถูกต้องจึงกดดาวน์โหลด"
-        )
-
-        pdf_base64 = base64.b64encode(
-            st.session_state["last_pdf"]
-        ).decode("utf-8")
-
-        pdf_preview_html = f"""
-        <div style="width:100%; border:1px solid #dce5ed;
-                    border-radius:12px; overflow:hidden;">
+        st.markdown("### ตัวอย่างรายงานก่อนดาวน์โหลด")
+        pdf_base64 = base64.b64encode(st.session_state["last_pdf"]).decode("utf-8")
+        pdf_preview_html = f'''
             <iframe
                 src="data:application/pdf;base64,{pdf_base64}"
-                width="100%"
-                height="850"
-                style="border:0;"
-                title="T-DTAF PDF Preview">
+                width="100%" height="760"
+                style="border:1px solid #d7e1ea;border-radius:10px;"
+                type="application/pdf">
             </iframe>
-        </div>
-        """
+        '''
+        components.html(pdf_preview_html, height=780, scrolling=True)
 
-        components.html(
-            pdf_preview_html,
-            height=865,
-            scrolling=True
-        )
-
+    if "last_pdf" in st.session_state:
+        st.divider()
         st.markdown("### ดาวน์โหลดรายงาน")
         st.download_button(
             "ดาวน์โหลดรายงาน PDF",

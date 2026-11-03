@@ -438,12 +438,63 @@ def build_pdf(
     df,
     area,
     title,
-    trend_df=None,
-    age_df=None,
+    historical_df=None,
     forecast_df=None,
     report_month=None,
     report_year=None,
+    trend_df=None,
+    age_df=None,
 ):
+    """
+    Build a three-page PDF.
+
+    Compatibility:
+    - Current app.py passes historical_df and forecast_df.
+    - Older app.py versions may pass trend_df and age_df directly.
+    """
+    # Derive the trend series and age distribution from the historical
+    # dataframe supplied by the current app.py.
+    historical = (
+        historical_df.copy()
+        if historical_df is not None
+        else pd.DataFrame()
+    )
+
+    if trend_df is None and not historical.empty:
+        required_trend_columns = {"year_be", "month", "disease", "cases"}
+        if required_trend_columns.issubset(historical.columns):
+            trend_source = historical.copy()
+            trend_source["year_be"] = pd.to_numeric(
+                trend_source["year_be"], errors="coerce"
+            )
+            trend_source["month"] = pd.to_numeric(
+                trend_source["month"], errors="coerce"
+            )
+            trend_source["cases"] = pd.to_numeric(
+                trend_source["cases"], errors="coerce"
+            ).fillna(0)
+            trend_source = trend_source.dropna(
+                subset=["year_be", "month"]
+            )
+            trend_source["period"] = (
+                trend_source["year_be"].astype(int).astype(str)
+                + "-"
+                + trend_source["month"].astype(int).astype(str).str.zfill(2)
+            )
+            trend_df = (
+                trend_source.groupby(
+                    ["period", "disease"], as_index=False
+                )["cases"].sum()
+            )
+
+    if age_df is None and not historical.empty:
+        if {"age_group", "cases"}.issubset(historical.columns):
+            age_df = (
+                historical.groupby(
+                    "age_group", as_index=False
+                )["cases"].sum()
+            )
+
     register_thai_fonts()
     styles = get_styles()
     buffer = BytesIO()

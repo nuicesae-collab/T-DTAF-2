@@ -180,8 +180,8 @@ def _cell(text, styles, bold=False):
 
 
 class AnnualTrendChart(Flowable):
-    """Readable monthly line chart with year-only x-axis labels."""
-    def __init__(self, frame, width=500, height=142, regular_font='TDTafThai'):
+    """Six separate monthly trend panels, each with its own readable scale."""
+    def __init__(self, frame, width=500, height=164, regular_font='TDTafThai'):
         super().__init__()
         self.frame = frame.copy() if isinstance(frame, pd.DataFrame) else pd.DataFrame()
         self.width, self.height, self.font = width, height, regular_font
@@ -194,68 +194,97 @@ class AnnualTrendChart(Flowable):
             c.setFillColor(GREY)
             c.drawString(8, self.height / 2, 'ไม่มีข้อมูลเพียงพอสำหรับสร้างกราฟแนวโน้มรายเดือน')
             return
+
         d = self.frame.copy()
         d['year_be'] = pd.to_numeric(d['year_be'], errors='coerce')
         d['month'] = pd.to_numeric(d['month'], errors='coerce')
         d['cases'] = pd.to_numeric(d['cases'], errors='coerce').fillna(0)
         d = d.dropna(subset=['year_be', 'month'])
+        d = d[(d['month'] >= 1) & (d['month'] <= 12)]
+        if d.empty:
+            c.setFont(self.font, 9)
+            c.setFillColor(GREY)
+            c.drawString(8, self.height / 2, 'ไม่มีข้อมูลเดือนที่ถูกต้องสำหรับสร้างกราฟ')
+            return
+
         d['year_be'] = d['year_be'].astype(int)
         d['month'] = d['month'].astype(int)
         years = sorted(d['year_be'].unique().tolist())[-5:]
         d = d[d['year_be'].isin(years)]
         monthly = d.groupby(['year_be', 'month', 'disease'], as_index=False)['cases'].sum()
-        periods = sorted(set(zip(monthly['year_be'].tolist(), monthly['month'].tolist())))
+        periods = [(year, month) for year in years for month in range(1, 13)]
         diseases = list(DISEASES) if DISEASES else sorted(monthly['disease'].unique().tolist())
-        lookup = {(int(r.year_be), int(r.month), r.disease): float(r.cases)
-                  for r in monthly.itertuples()}
-        if not periods:
+        diseases = diseases[:6]
+        lookup = {
+            (int(r.year_be), int(r.month), str(r.disease)): float(r.cases)
+            for r in monthly.itertuples()
+        }
+        if not periods or not diseases:
             return
-        left, right, bottom, top = 42, self.width - 12, 31, self.height - 12
-        plot_w, plot_h = right - left, top - bottom
-        ymax = max(1.0, max(lookup.values(), default=1.0)) * 1.12
-        c.setFont(self.font, 7)
-        for i in range(5):
-            value = ymax * i / 4
-            y = bottom + plot_h * i / 4
+
+        # 2 columns x 3 rows: each disease gets an independent y-axis scale.
+        cols, rows = 2, 3
+        gap_x, gap_y = 12, 5
+        panel_w = (self.width - gap_x) / cols
+        panel_h = (self.height - gap_y * (rows - 1)) / rows
+        panel_colors = LINE_COLORS
+
+        for j, disease in enumerate(diseases):
+            row, col = divmod(j, cols)
+            x0 = col * (panel_w + gap_x)
+            y0 = self.height - (row + 1) * panel_h - row * gap_y
+            vals = [lookup.get((year, month, str(disease)), 0.0) for year, month in periods]
+            max_val = max(vals, default=0.0)
+            ymax = max(1.0, max_val * 1.12)
+
+            # Panel boundary and disease title.
             c.setStrokeColor(GRID)
             c.setLineWidth(0.45)
-            c.line(left, y, right, y)
-            c.setFillColor(GREY)
-            c.drawRightString(left - 5, y - 2, f'{value:,.0f}')
-        xs = [left + plot_w * i / max(1, len(periods) - 1) for i in range(len(periods))]
-        # Label only January of each year to keep the timeline uncluttered.
-        for i, (year, month) in enumerate(periods):
-            if month == 1 or i == 0:
+            c.roundRect(x0 + 1, y0 + 1, panel_w - 2, panel_h - 2, 3, fill=0, stroke=1)
+            c.setFillColor(NAVY)
+            c.setFont(self.font, 7.2)
+            c.drawString(x0 + 7, y0 + panel_h - 11, str(disease)[:34])
+
+            left = x0 + 31
+            right = x0 + panel_w - 7
+            bottom = y0 + 12
+            top = y0 + panel_h - 17
+            plot_w = max(1, right - left)
+            plot_h = max(1, top - bottom)
+
+            # Two subtle horizontal guides and compact y-axis labels.
+            c.setFont(self.font, 5.5)
+            for fraction, label in ((0, '0'), (1, f'{max_val:,.0f}')):
+                gy = bottom + fraction * plot_h
+                c.setStrokeColor(GRID)
+                c.setLineWidth(0.35)
+                c.line(left, gy, right, gy)
                 c.setFillColor(GREY)
-                c.drawCentredString(xs[i], bottom - 12, str(year))
-        for j, disease in enumerate(diseases):
-            vals = [lookup.get((year, month, disease), 0.0) for year, month in periods]
+                c.drawRightString(left - 3, gy - 2, label)
+
+            xs = [left + plot_w * i / max(1, len(periods) - 1) for i in range(len(periods))]
             pts = [(xs[i], bottom + (v / ymax) * plot_h) for i, v in enumerate(vals)]
-            color = LINE_COLORS[j % len(LINE_COLORS)]
+            color = panel_colors[j % len(panel_colors)]
             c.setStrokeColor(color)
-            c.setFillColor(color)
-            c.setLineWidth(1.35)
+            c.setLineWidth(1.15)
             if len(pts) > 1:
                 path = c.beginPath()
                 path.moveTo(*pts[0])
                 for pt in pts[1:]:
                     path.lineTo(*pt)
-                c.drawPath(path)
-            for x, y in pts:
-                c.circle(x, y, 1.5, fill=1, stroke=0)
-        # Two-row legend, placed below the x-axis.
-        legend_y = 14
-        col_w = (self.width - 20) / 3
-        for j, disease in enumerate(diseases[:6]):
-            row, col = divmod(j, 3)
-            x = 12 + col * col_w
-            y = legend_y - row * 10
-            color = LINE_COLORS[j % len(LINE_COLORS)]
-            c.setFillColor(color)
-            c.circle(x, y + 2, 2.3, fill=1, stroke=0)
+                c.drawPath(path, stroke=1, fill=0)
+
+            # Label the first month of each year; avoid printing all 60 months.
             c.setFillColor(GREY)
-            c.setFont(self.font, 6.5)
-            c.drawString(x + 5, y, str(disease)[:27])
+            c.setFont(self.font, 5.3)
+            for i, (year, month) in enumerate(periods):
+                if month == 1:
+                    c.drawCentredString(xs[i], y0 + 3, str(year))
+
+        if len(diseases) < 6:
+            c.setFont(self.font, 7)
+            c.setFillColor(GREY)
+            c.drawString(8, 3, 'มีข้อมูลไม่ครบ 6 โรคในชุดข้อมูลที่เลือก')
 
 
 class AgeBarChart(Flowable):
@@ -471,8 +500,8 @@ def build_pdf(
             years = []
         story += [
             _p('แนวโน้มจำนวนผู้ป่วยรายเดือนย้อนหลัง 5 ปี แยกตามโรค', styles['section']),
-            AnnualTrendChart(h, width=doc.width, height=142, regular_font=regular),
-            _p('กราฟแสดงข้อมูลรายเดือนตลอดช่วง 5 ปี โดยระบุปี พ.ศ. บนแกนเวลาเฉพาะจุดเริ่มต้นของแต่ละปี และแสดงจำนวนผู้ป่วย (ราย) บนแกนตั้ง', styles['small']),
+            AnnualTrendChart(h, width=doc.width, height=164, regular_font=regular),
+            _p('แยกกราฟตามโรคทั้ง 6 โรค โดยแต่ละกราฟใช้สเกลจำนวนผู้ป่วยของตนเอง แกนนอนแสดงปี พ.ศ. และแกนตั้งแสดงจำนวนผู้ป่วย (ราย)', styles['small']),
             Spacer(1, 3),
             _p('บทวิเคราะห์แนวโน้ม', styles['section']),
             _trend_text(h, styles),

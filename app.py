@@ -1368,6 +1368,7 @@ elif page == "รายงานประจำเดือน":
                 key=confirm_key
             )
 
+
             if st.button(
                 "ยืนยันส่ง PDF ผ่าน LINE OA",
                 type="primary",
@@ -1376,63 +1377,91 @@ elif page == "รายงานประจำเดือน":
                 key="send_monthly_report_line"
             ):
                 try:
-                    drive_url = upload_pdf_to_drive(
-                        st.session_state["last_pdf"],
-                        st.session_state["last_pdf_name"]
+                    # 1. อ่าน APP_PUBLIC_URL
+                    # รองรับทั้ง Secrets ระดับหลักและภายใน [passwords]
+                    dashboard = (
+                        st.secrets.get("APP_PUBLIC_URL", "")
+                        or st.secrets.get(
+                            "passwords", {}
+                        ).get("APP_PUBLIC_URL", "")
                     )
-                    dashboard = st.secrets.get("APP_PUBLIC_URL", "")
 
-                    if not drive_url:
+                    dashboard = str(dashboard).strip().rstrip("/")
+
+                    if not dashboard:
                         st.error(
-                            "อัปโหลด PDF ไป Google Drive ไม่สำเร็จ "
-                            "โปรดตรวจสอบการตั้งค่า Drive"
+                            "ไม่พบ APP_PUBLIC_URL "
+                            "กรุณาตรวจสอบ Streamlit Secrets"
                         )
-                    elif not dashboard:
-                        st.error(
-                            "กรุณาตั้งค่า APP_PUBLIC_URL ใน Streamlit Secrets"
-                        )
+
                     else:
-                        sent = 0
-                        failed = 0
-                        message = (
-                            "T-DTAF รายงานประจำเดือน\n"
-                            f"พื้นที่: {report_area}\n"
-                            f"PDF: {drive_url}\n"
-                            f"Dashboard: {dashboard}"
-                        )
-                        for recipient in selected_recipients:
-                            result = send_line_message(
-                                recipient["line_id"], message
+                        # 2. อัปโหลด PDF ไป Supabase Storage
+                        with st.spinner(
+                            "กำลังอัปโหลดรายงาน PDF ไปยัง Supabase..."
+                        ):
+                            pdf_url = upload_pdf_to_drive(
+                                st.session_state["last_pdf"],
+                                st.session_state["last_pdf_name"]
                             )
-                            if result:
-                                sent += 1
-                            else:
-                                failed += 1
 
-                        if failed == 0:
-                            st.success(f"ส่งรายงานสำเร็จ {sent} ราย")
+                        if not pdf_url:
+                            st.error(
+                                "อัปโหลด PDF ไปยัง Supabase Storage ไม่สำเร็จ "
+                                "กรุณาตรวจสอบการเชื่อมต่อ Supabase"
+                            )
+
                         else:
-                            st.warning(
-                                f"ส่งสำเร็จ {sent} ราย และส่งไม่สำเร็จ {failed} ราย"
-                            )
-                except Exception as error:
-                    st.error(f"เกิดข้อผิดพลาดในการส่งรายงาน: {error}")
+                            # 3. เตรียมข้อความ LINE OA
+                            sent = 0
+                            failed = 0
 
-        else:
-            if report_area == "ประเทศไทย":
-                st.warning(
-                    "ยังไม่พบผู้รับรายงานประเทศไทย "
-                    "โปรดเพิ่มผู้รับในเมนู 'จัดการผู้รับรายงาน' "
-                    "ให้มีชื่อทีมระบาดวิทยา และทีมควบคุมการติดเชื้อ (IC) "
-                    "พร้อม LINE Group ID ที่ถูกต้อง"
-                )
-            else:
-                st.warning(
-                    "ยังไม่พบผู้รับที่ตรงกับพื้นที่รายงาน "
-                    "โปรดเพิ่มผู้รับในเมนู 'จัดการผู้รับรายงาน' "
-                    "โดยตั้งชื่อให้มีชื่อเขตสุขภาพที่เลือก เช่น "
-                    "'ผู้บริหารเขตสุขภาพที่ 1' พร้อม LINE Group ID"
-                )
+                            message = (
+                                "T-DTAF รายงานประจำเดือน\n"
+                                f"พื้นที่: {report_area}\n"
+                                f"PDF: {pdf_url}\n"
+                                f"Dashboard: {dashboard}"
+                            )
+
+                            # 4. ส่งรายงานให้ผู้รับที่เลือกไว้
+                            for recipient in selected_recipients:
+                                try:
+                                    result = send_line_message(
+                                        recipient["line_id"],
+                                        message
+                                    )
+
+                                    if result:
+                                        sent += 1
+                                    else:
+                                        failed += 1
+
+                                except Exception:
+                                    failed += 1
+
+                            # 5. แสดงผลการส่ง
+                            if failed == 0:
+                                st.success(
+                                    f"ส่งรายงานสำเร็จ {sent} ราย"
+                                )
+
+                                st.markdown(
+                                    f"[เปิดดูรายงาน PDF]({pdf_url})"
+                                )
+
+                            else:
+                                st.warning(
+                                    f"ส่งสำเร็จ {sent} ราย "
+                                    f"และส่งไม่สำเร็จ {failed} ราย"
+                                )
+
+                                st.markdown(
+                                    f"[เปิดดูรายงาน PDF]({pdf_url})"
+                                )
+
+                except Exception as error:
+                    st.error(
+                        f"เกิดข้อผิดพลาดในการส่งรายงาน: {error}"
+                    )
 
 
 # =====================================================

@@ -6,8 +6,9 @@ import os
 def upload_pdf_to_drive(pdf_bytes, filename):
     """
     Upload PDF to Supabase Private Storage
-    and return a temporary Signed URL for viewing.
+    and return Signed URL for inline viewing.
     """
+
     try:
         from supabase import create_client
 
@@ -35,18 +36,19 @@ def upload_pdf_to_drive(pdf_bytes, filename):
 
         file_path = f"reports/{uuid.uuid4().hex}_{filename}"
 
-        # Upload PDF with correct MIME type
+        # Upload PDF ให้เปิดดูผ่าน Browser ได้
         supabase.storage.from_(bucket).upload(
             file_path,
             pdf_bytes,
             {
                 "content-type": "application/pdf",
+                "content-disposition": "inline",
+                "cache-control": "3600",
                 "upsert": "false"
             }
         )
 
-        # Create signed URL for viewing (7 days)
-        # Do not set download=True
+        # สร้าง Signed URL อายุ 7 วัน
         result = supabase.storage.from_(bucket).create_signed_url(
             file_path,
             604800

@@ -582,122 +582,50 @@ elif page == "วิเคราะห์แนวโน้มและคาด
 
         if not analysis_data.empty:
 
-            available_years = sorted(
-                analysis_data.year_be.unique()
-            )[-5:]
-
-            analysis_data = analysis_data[
-                analysis_data.year_be.isin(available_years)
-            ]
-
-    else:
-
-        analysis_data = get_year_data(selected_year)
-
-    analysis_data = filter_data(
-        analysis_data,
-        area,
-        disease
-    )
-
-    # ---------- TREND CHART ----------
-
-    st.markdown("### แนวโน้มจำนวนผู้ป่วยรายเดือน")
-
-    with st.container(border=True):
-
-        if mode == "เปรียบเทียบย้อนหลัง 5 ปี":
-
-            st.caption("เปรียบเทียบข้อมูลย้อนหลัง 5 ปี")
-
-        else:
-
-            st.caption(f"ข้อมูลปี พ.ศ. {selected_year}")
-
-        if not analysis_data.empty:
-
-            # กำหนดลำดับเดือนตามปฏิทินโดยตรง เพื่อป้องกันกราฟเรียงตามตัวอักษร
-            thai_months = [
-                "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน",
-                "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม",
-                "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+            # แปลงเลขเดือนให้เป็นตัวเลขก่อน เพื่อให้เรียงตามปฏิทินเสมอ
+            trend_source = analysis_data.copy()
+            month_lookup = {name: i + 1 for i, name in enumerate(MONTHS)}
+            trend_source["month_num"] = trend_source["month"].apply(
+                lambda value: month_lookup.get(str(value).strip(), value)
+            )
+            trend_source["month_num"] = pd.to_numeric(
+                trend_source["month_num"], errors="coerce"
+            )
+            trend_source = trend_source.dropna(subset=["month_num"])
+            trend_source["month_num"] = trend_source["month_num"].astype(int)
+            trend_source = trend_source[
+                trend_source["month_num"].between(1, 12)
             ]
 
             trend = (
-                analysis_data
+                trend_source
                 .groupby(
-                    ["year_be", "month"],
+                    ["year_be", "month_num"],
                     as_index=False
                 )["cases"]
                 .sum()
             )
 
-            # สร้างข้อมูลครบทั้ง 12 เดือน และเติม 0 ในเดือนที่ไม่มีข้อมูล
-            trend_pivot = (
-                trend.pivot(
-                    index="month",
-                    columns="year_be",
-                    values="cases"
-                )
-                .reindex(range(1, 13))
-                .fillna(0)
-            )
+            # คงรูปแบบกราฟเส้นเดิมไว้ และบังคับให้แกนเดือนเรียง 1–12
+            trend_pivot = trend.pivot(
+                index="month_num",
+                columns="year_be",
+                values="cases"
+            ).reindex(range(1, 13), fill_value=0).fillna(0)
 
-            # แปลงกลับเป็นรูปแบบ long เพื่อกำหนดลำดับแกน X ด้วย Altair
-            chart_data = (
-                trend_pivot
-                .rename_axis("month")
-                .reset_index()
-                .melt(
-                    id_vars="month",
-                    var_name="year_be",
-                    value_name="cases"
-                )
-            )
+            trend_pivot.index = [
+                MONTHS[month_no - 1] for month_no in trend_pivot.index
+            ]
+            trend_pivot.index.name = "เดือน"
 
-            chart_data["month_label"] = chart_data["month"].map(
-                lambda month_no: thai_months[int(month_no) - 1]
-            )
-            chart_data["year_be"] = chart_data["year_be"].astype(str)
-
-            trend_chart = (
-                alt.Chart(chart_data)
-                .mark_line(point=True, strokeWidth=2.5)
-                .encode(
-                    x=alt.X(
-                        "month_label:N",
-                        sort=thai_months,
-                        title="เดือน",
-                        axis=alt.Axis(labelAngle=0, labelLimit=100)
-                    ),
-                    y=alt.Y(
-                        "cases:Q",
-                        title="จำนวนผู้ป่วย (ราย)",
-                        scale=alt.Scale(zero=True)
-                    ),
-                    color=alt.Color(
-                        "year_be:N",
-                        title="ปี พ.ศ.",
-                        sort=sorted(chart_data["year_be"].unique())
-                    ),
-                    tooltip=[
-                        alt.Tooltip("month_label:N", title="เดือน"),
-                        alt.Tooltip("year_be:N", title="ปี พ.ศ."),
-                        alt.Tooltip("cases:Q", title="จำนวนผู้ป่วย", format=",")
-                    ]
-                )
-                .properties(height=380)
-                .interactive()
-            )
-
-            st.altair_chart(
-                trend_chart,
+            st.line_chart(
+                trend_pivot,
                 use_container_width=True
             )
 
             st.caption(
                 "กราฟแสดงแนวโน้มจำนวนผู้ป่วยรายเดือน "
-                "จำแนกตามปีที่เลือก โดยเรียงเดือนมกราคมถึงธันวาคม"
+                "จำแนกตามปีที่เลือก เรียงเดือนมกราคมถึงธันวาคม"
             )
 
         else:

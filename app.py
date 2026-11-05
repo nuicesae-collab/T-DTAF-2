@@ -582,11 +582,30 @@ elif page == "วิเคราะห์แนวโน้มและคาด
 
         if not analysis_data.empty:
 
-            # แปลงเลขเดือนให้เป็นตัวเลขก่อน เพื่อให้เรียงตามปฏิทินเสมอ
+            # กำหนดลำดับเดือนภาษาไทยให้ตรงตามปฏิทิน มกราคม–ธันวาคม
+            month_order = [
+                "มกราคม", "กุมภาพันธ์", "มีนาคม",
+                "เมษายน", "พฤษภาคม", "มิถุนายน",
+                "กรกฎาคม", "สิงหาคม", "กันยายน",
+                "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+            ]
             trend_source = analysis_data.copy()
-            month_lookup = {name: i + 1 for i, name in enumerate(MONTHS)}
+            month_lookup = {name: i + 1 for i, name in enumerate(month_order)}
+            month_abbr_lookup = {
+                "ม.ค.": 1, "ก.พ.": 2, "มี.ค.": 3, "เม.ย.": 4,
+                "พ.ค.": 5, "มิ.ย.": 6, "ก.ค.": 7, "ส.ค.": 8,
+                "ก.ย.": 9, "ต.ค.": 10, "พ.ย.": 11, "ธ.ค.": 12,
+            }
+            def normalize_month(value):
+                text_value = str(value).strip()
+                if text_value in month_lookup:
+                    return month_lookup[text_value]
+                if text_value in month_abbr_lookup:
+                    return month_abbr_lookup[text_value]
+                return value
+
             trend_source["month_num"] = trend_source["month"].apply(
-                lambda value: month_lookup.get(str(value).strip(), value)
+                normalize_month
             )
             trend_source["month_num"] = pd.to_numeric(
                 trend_source["month_num"], errors="coerce"
@@ -614,7 +633,7 @@ elif page == "วิเคราะห์แนวโน้มและคาด
             ).reindex(range(1, 13), fill_value=0).fillna(0)
 
             trend_pivot.index = [
-                MONTHS[month_no - 1] for month_no in trend_pivot.index
+                month_order[month_no - 1] for month_no in trend_pivot.index
             ]
             trend_pivot.index.name = "เดือน"
 

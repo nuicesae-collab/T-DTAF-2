@@ -625,20 +625,76 @@ elif page == "วิเคราะห์แนวโน้มและคาด
                 .sum()
             )
 
-            # คงรูปแบบกราฟเส้นเดิมไว้ และบังคับให้แกนเดือนเรียง 1–12
+            # จัดข้อมูลกราฟให้เรียงเดือนตามปฏิทิน มกราคม–ธันวาคม
             trend_pivot = trend.pivot(
                 index="month_num",
                 columns="year_be",
                 values="cases"
             ).reindex(range(1, 13), fill_value=0).fillna(0)
 
-            trend_pivot.index = [
-                month_order[month_no - 1] for month_no in trend_pivot.index
-            ]
-            trend_pivot.index.name = "เดือน"
+            # แปลงข้อมูลเป็นรูปแบบ long format สำหรับ Altair
+            trend_chart_data = (
+                trend_pivot
+                .rename_axis("month_num")
+                .reset_index()
+                .melt(
+                    id_vars="month_num",
+                    var_name="year_be",
+                    value_name="cases"
+                )
+            )
 
-            st.line_chart(
-                trend_pivot,
+            trend_chart_data["month"] = trend_chart_data["month_num"].map(
+                {i + 1: name for i, name in enumerate(month_order)}
+            )
+            trend_chart_data["year_be"] = trend_chart_data["year_be"].astype(str)
+
+            # เรียงปีจากน้อยไปมาก และกำหนดสีให้กราฟแต่ละปี
+            year_order = sorted(
+                trend_chart_data["year_be"].unique().tolist(),
+                key=lambda value: int(value)
+            )
+
+            chart_colors = [
+                "#1f77b4",
+                "#7fc8f8",
+                "#ff2b2b",
+                "#ff9da7",
+                "#20b2aa"
+            ]
+
+            trend_chart = alt.Chart(trend_chart_data).mark_line(
+                strokeWidth=2
+            ).encode(
+                x=alt.X(
+                    "month:N",
+                    sort=month_order,
+                    title="เดือน",
+                    axis=alt.Axis(labelAngle=-90)
+                ),
+                y=alt.Y(
+                    "cases:Q",
+                    title="จำนวนผู้ป่วย",
+                    scale=alt.Scale(zero=True)
+                ),
+                color=alt.Color(
+                    "year_be:N",
+                    title="ปี พ.ศ.",
+                    sort=year_order,
+                    scale=alt.Scale(
+                        domain=year_order,
+                        range=chart_colors[:len(year_order)]
+                    )
+                ),
+                tooltip=[
+                    alt.Tooltip("month:N", title="เดือน"),
+                    alt.Tooltip("year_be:N", title="ปี พ.ศ."),
+                    alt.Tooltip("cases:Q", title="จำนวนผู้ป่วย")
+                ]
+            ).properties(height=350)
+
+            st.altair_chart(
+                trend_chart,
                 use_container_width=True
             )
 

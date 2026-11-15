@@ -574,17 +574,19 @@ elif page == "วิเคราะห์แนวโน้มและคาด
             key="analysis_year"
         )
 
-    # ---------- SELECT ANALYSIS DATA ----------
-if mode == "ดูเฉพาะปีที่เลือก":
-    analysis_data = pd.concat(
-        [hist, forecast],
-        ignore_index=True
-    )
-    analysis_data = analysis_data[
-        analysis_data["year_be"] == selected_year
-    ].copy()
-    if mode == "เปรียบเทียบย้อนหลัง 5 ปี":
 
+    # ---------- SELECT ANALYSIS DATA ----------
+
+    if mode == "ดูเฉพาะปีที่เลือก":
+        analysis_data = pd.concat(
+            [hist, forecast],
+            ignore_index=True
+        )
+        analysis_data = analysis_data[
+            analysis_data["year_be"] == selected_year
+        ].copy()
+
+    if mode == "เปรียบเทียบย้อนหลัง 5 ปี":
         analysis_data = hist.copy()
 
         if not analysis_data.empty:
